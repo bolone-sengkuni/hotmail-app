@@ -74,60 +74,35 @@ class Hotmail:
     def set_confirmation_mail(self,confirmation_mail)->None:
         '''set_confirmation_mail'''
         self.confirmation_mail = confirmation_mail
-
+    def toString(self):
+        return f"{self.host}:{self.port} // {self.email},{self.confirmation_mail}"
+        
     def my_proxy(self)->webdriver:
         ''' open a firfox profile using a specifique proxy '''
         try:
-            try:
-                firefoxProfile:FirefoxProfile = FirefoxProfile()
-                firefoxProfile.set_preference("network.proxy.type", 1)
-                firefoxProfile.set_preference("network.proxy.http",self.host)
-                firefoxProfile.set_preference("network.proxy.http_port",int(self.port))
-                firefoxProfile.set_preference("network.proxy.ssl",self.host)
-                firefoxProfile.set_preference("network.proxy.ssl_port",int(self.port))
-                firefoxProfile.set_preference("general.useragent.override","whater_useragent")
-                firefoxProfile.update_preferences()
-                binary = FirefoxBinary('C:\\Program Files\\Mozilla Firefox\\firefox.exe')
-                browser = webdriver.Firefox(executable_path=r'C:\\WebDrivers\\geckodriver.exe', firefox_binary=binary,firefox_profile=firefoxProfile)
-            except Exception:
-                self.host = random.choice(HOST)
-                firefoxProfile:FirefoxProfile = FirefoxProfile()
-                firefoxProfile.set_preference("network.proxy.type", 1)
-                firefoxProfile.set_preference("network.proxy.http",)
-                firefoxProfile.set_preference("network.proxy.http_port",int(self.port))
-                firefoxProfile.set_preference("network.proxy.ssl",self.host)
-                firefoxProfile.set_preference("network.proxy.ssl_port",int(self.port))
-                firefoxProfile.set_preference("general.useragent.override","whater_useragent")
-                firefoxProfile.update_preferences()
-                binary = FirefoxBinary('C:\\Program Files\\Mozilla Firefox\\firefox.exe')
-                browser = webdriver.Firefox(executable_path=r'C:\\WebDrivers\\geckodriver.exe', firefox_binary=binary,firefox_profile=firefoxProfile)
+            opts = options()
+            opts.set_preference("network.proxy.type", 1)
+            opts.set_preference("network.proxy.http",self.host)
+            opts.set_preference("network.proxy.http_port",int(self.port))
+            opts.set_preference("network.proxy.ssl",self.host)
+            opts.set_preference("network.proxy.ssl_port",int(self.port))
+            opts.set_preference("general.useragent.override","whater_useragent")
+            browser = webdriver.Firefox(service=Service(GeckoDriverManager().install()),options=opts)
         except Exception:
-            try:
-                firefoxProfile:FirefoxProfile = FirefoxProfile()
-                firefoxProfile.set_preference("network.proxy.type", 1)
-                firefoxProfile.set_preference("network.proxy.http",self.host)
-                firefoxProfile.set_preference("network.proxy.http_port",int(self.port))
-                firefoxProfile.set_preference("network.proxy.ssl",self.host)
-                firefoxProfile.set_preference("network.proxy.ssl_port",int(self.port))
-                firefoxProfile.set_preference("general.useragent.override","whater_useragent")
-                firefoxProfile.update_preferences()
-                browser = webdriver.Firefox(firefox_profile=firefoxProfile)
-            except Exception:
-                self.host = random.choice(HOST)
-                firefoxProfile:FirefoxProfile = FirefoxProfile()
-                firefoxProfile.set_preference("network.proxy.type", 1)
-                firefoxProfile.set_preference("network.proxy.http",)
-                firefoxProfile.set_preference("network.proxy.http_port",int(self.port))
-                firefoxProfile.set_preference("network.proxy.ssl",self.host)
-                firefoxProfile.set_preference("network.proxy.ssl_port",int(self.port))
-                firefoxProfile.set_preference("general.useragent.override","whater_useragent")
-                firefoxProfile.update_preferences()
-                browser = webdriver.Firefox(firefox_profile=firefoxProfile)
-        return browser
-
+            self.host = random.choice(HOST)
+            opts = options()
+            opts.set_preference("network.proxy.type", 1)
+            opts.set_preference("network.proxy.http",self.host)
+            opts.set_preference("network.proxy.http_port",3128)
+            opts.set_preference("network.proxy.ssl",self.host)
+            opts.set_preference("network.proxy.ssl_port",3128)
+            opts.set_preference("general.useragent.override","whater_useragent")
+            browser = webdriver.Firefox(service=Service(GeckoDriverManager().install()),options=opts)
+        return browser   
+       
     def clear_and_input(self,id:any,value:str,browser:webdriver)->None:
         """ clear and put value in input field """
-        elem = WebDriverWait(browser, 30).until(
+        elem = WebDriverWait(browser, 5).until(
             EC.presence_of_element_located((By.ID, id))
         )
         elem.clear()
@@ -135,58 +110,47 @@ class Hotmail:
     
     def click_(self,browser,id:any)->None:
         """ click on submit button """
-        elem = WebDriverWait(browser, 20).until(
+        elem = WebDriverWait(browser, 5).until(
             EC.presence_of_element_located((By.ID, id))
         )
         elem.click()
-
-    def generate_user_info(self,browser):
-        browser.get(FAKE_USER_GENERATOR)
-        user = browser.find_element(By.CLASS_NAME,'address').find_element(By.TAG_NAME,'h3').text
+        
+    def create(self,_host) -> None:
+        ''' create a hotmail account '''
+        #get user info {firstname,lastname,email,password}
+        driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()))
+        driver.maximize_window()
+        driver.get(FAKE_USER_GENERATOR)
+        user = driver.find_element(By.CLASS_NAME,'address').find_element(By.TAG_NAME,'h3').text
         user = user.split(' ')
         del user[1]
         self.firstname = str(user[0])
         self.lastname = str(user[1])
-        self.email = str(user[1])+"_"+str(user[0])+"_"+str(random.randint(1,1000))+'@hotmail.com'
-        self.password = self.firstname+self.lastname+str(random.randint(1,500))+'@'
+        self.email = f"{self.firstname}.{self.lastname}_{str(random.randint(1,5000))}@outlook.com"
+        self.password = f"{self.firstname}{self.lastname}{str(random.randint(1,500))}@"
+        self.confirmation_mail = f"{self.firstname}.{self.lastname}_{str(random.randint(1,20))}"
+        driver.quit()
         
-    def create(self,_host) -> None:
-        ''' create a hotmail account '''
         # get a random proxy
         while True:
             try:
-                self.set_host(_host)
-                self.set_port(int(PORT))
+                self.host = random.choice(HOST)
+                self.port = PORT
                 browser = self.my_proxy()
                 break
             except Exception:
                 print(f'{self.host} not working')
-                
-        #get user info {firstname,lastname,email,password}
-        self.generate_user_info(browser)
-
-        # change the window
-        browser.execute_script("window.open('');")
-        browser.switch_to.window(browser.window_handles[1])
-        #get sign-up url
-        browser.get(SINGN_UP)
-        try:
+       try:
+            #get sign-up url
+            browser.maximize_window()
+            browser.get(SINGN_UP)
             self.clear_and_input("MemberName",self.email,browser)
             self.click_(browser=browser,id="iSignupAction")
-            self.clear_and_input(id="PasswordInput",value=self.password,browser=browser)
-            # input the password 
-            try:
-                elem = WebDriverWait(browser, 10).until(
-                    EC.presence_of_element_located((By.ID, 'iSignupAction'))
-                )
-                elem.click()
-            except Exception:
-                elem = WebDriverWait(browser, 10).until(
-                    EC.presence_of_element_located((By.ID, 'PasswordForm'))
-                )
-                elem.submit()
-            finally:
-                sleep(3)        
+            self.clear_and_input(id="PasswordInput",value=self.password,browser=browser)            
+            elem = WebDriverWait(browser, 30).until(
+                EC.presence_of_element_located((By.ID, 'iSignupAction'))
+            )
+            elem.click()
             self.clear_and_input(id="FirstName",value=self.firstname,browser=browser)
             self.clear_and_input(id="LastName",value=self.lastname,browser=browser)
             self.click_(browser=browser,id="iSignupAction")
@@ -208,35 +172,42 @@ class Hotmail:
 
             #submit all info to get the captcha
             browser.find_element(By.ID,"iSignupAction").click()
-            self.confirmation_mail = self.firstname+'_'+self.lastname+str(random.randint(1,20))+'@mailnesia.com'
-            browser.switch_to.window(browser.window_handles[0])
-            browser.close()
-        except Exception:
-            browser.close()
-            browser.close()
-
+            self.confirmation_mail = self.firstname+'_'+self.lastname+str(random.randint(1,20))
+        exept Exception:
+            browser.quit
+            
     def get_code(self,email,browser)->str:
         ''' get code from the mail box '''
-        sleep(5)
-        self.clear_and_input(id="mailbox",value=email,browser=browser)
-        self.click_(browser=browser,id="sm")
-        tBody = browser.find_element(By.TAG_NAME,'table').find_element(By.TAG_NAME,'tbody')
-        tr = tBody.find_elements(By.TAG_NAME,'tr')
-        td = tr[0].find_elements(By.TAG_NAME,'td')
-        td[4].click()
-        table = browser.find_elements(By.TAG_NAME,'table')
-        _tr = table[1].find_element(By.TAG_NAME,'tbody').find_elements(By.TAG_NAME,'tr')
+        driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()))
+        driver.maximize_window()
+        driver.get("https://www.guerrillamail.com/")
+        self.click_(browser=driver,id="inbox-id")
+        elem = driver.find_element(By.ID,'inbox-id').find_element(By.TAG_NAME,'input')
+        elem.clear()
+        elem.send_keys(email)
+        driver.find_element(By.CLASS_NAME,'save').click()
+        domain = WebDriverWait(driver, 30).until(
+            EC.presence_of_element_located((By.ID, "gm-host-select"))
+        )
+        Select(domain).select_by_value('guerrillamail.info')
+        sleep(10)
+        mail = driver.find_element(By.ID,'email_list')
+        tr = mail.find_elements(By.TAG_NAME,'tr')
+        td =tr[0].find_elements(By.TAG_NAME,'td')
+        td[1].click()
+        email_body = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "email_body"))
+        )
+        _tr = email_body.find_element(By.TAG_NAME,'tbody').find_elements(By.TAG_NAME,'tr')
         td = _tr[3].find_element(By.TAG_NAME,'td')
         code :str = td.find_element(By.TAG_NAME,'span').text  
-
+        driver.quit()
         return code
 
     def recover(self) ->None:
-        ''' add recovery mail to the email created'''
         browser = self.my_proxy()
         try:
             browser.get(PROOFS_ADD)
-            valide = False
             try:
                 self.clear_and_input(id="i0116",value=self.email,browser=browser)
                 self.click_(browser=browser,id="idSIButton9")
@@ -244,46 +215,34 @@ class Hotmail:
                 pwd = browser.find_element(By.ID,"i0118")
                 pwd.send_keys(self.password)
                 browser.find_element(By.ID,"idSIButton9").click()
-                self.clear_and_input(id="EmailAddress",value=self.confirmation_mail,browser=browser)
+                sleep(5)
+                browser.find_element(By.ID,'EmailAddress').send_keys(self.confirmation_mail+'@guerrillamail.info')
                 self.click_(browser=browser,id="iNext")
 
-                browser.execute_script("window.open('');")
-                browser.switch_to.window(browser.window_handles[1])
-                browser.get("https://mailnesia.com/")
-
                 # get email verification code 
-                code = self.get_code(email=self.confirmation_mail,browser=browser)
-
-                browser.switch_to.window(browser.window_handles[0])
+                code = self.get_code(email=self.confirmation_mail)
+                
                 self.clear_and_input(id="iOttText",value=code,browser=browser)
                 self.click_(browser=browser,id="iNext")
             except Exception:
-                valide = True
-
-            elem = WebDriverWait(browser, 10).until(
+                pass
+            elem = WebDriverWait(browser, 20).until(
                     EC.presence_of_element_located((By.CLASS_NAME, 'table'))
                 )
             elem.click()
-            self.clear_and_input(id="idTxtBx_SAOTCS_ProofConfirmation", value=self.confirmation_mail,browser=browser)    
-            self.click_(browser=browser,id="idSubmit_SAOTCS_SendCode")
-            if valide == True:
-                browser.execute_script("window.open('');")
-                browser.switch_to.window(browser.window_handles[1])
-                browser.get("https://mailnesia.com/")
-            else:
-                browser.switch_to.window(browser.window_handles[1])
+            self.clear_and_input(id="idTxtBx_SAOTCS_ProofConfirmation", value=self.confirmation_mail+'@guerrillamail.info',browser=browser)    
+            self.click_(browser=browser,id="idSubmit_SAOTCS_SendCode")       
 
             # get email verification code
-            code = self.get_code(email=self.confirmation_mail,browser=browser)
-            browser.close()
-            browser.switch_to.window(browser.window_handles[0])
+            code = self.get_code(email=self.confirmation_mail)
+
             self.clear_and_input(id="idTxtBx_SAOTCC_OTC",value=code,browser=browser)
             self.click_(browser=browser,id="idSubmit_SAOTCC_Continue")
             sleep(3)
-            browser.close()
-        except:
-            print(self.email)
-            browser.close()  
+            browser.quit()
+        except Exception:
+            print(self.toString())
+            browser.quit()  
 
     def go_junk(self,browser):
         browser.get("https://outlook.live.com/mail/junkemail")
@@ -419,8 +378,9 @@ class Hotmail:
 
     def login(self):
         browser = self.my_proxy()     
-        browser.get(LOGIN)
+        browser.maximize_window()
         try:
+            browser.get(LOGIN)
             self.clear_and_input(id="i0116",value=self.email,browser=browser)
             self.click_(browser=browser,id="idSIButton9")
             sleep(3)
@@ -429,9 +389,20 @@ class Hotmail:
             browser.find_element(By.ID,"idSIButton9").click()   
             
             self.click_(browser=browser,id="idBtn_Back")
-        except Exception:
-            browser.close()
+            '''DATA['host']=self.host
+            DATA['port']=self.port
+            DATA['email']=self.email
+            DATA['password']=self.password
+            DATA['confirmation_mail']=self.confirmation_mail
+            filename =str('correct_seeds.csv')
 
+            with open(file=f'{filename}',mode='a',encoding='UTF-8') as f:   
+                writer = csv.writer(f)
+                writer.writerow(DATA.values())'''
+        except Exception:
+            browser.quit()
+   
+    
 class Window(QWidget):
     def __init__(self, parent=None):
         super(Window, self).__init__(parent)
