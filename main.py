@@ -402,7 +402,9 @@ class Hotmail:
         except Exception:
             browser.quit()
    
-    
+    def toString(self):
+        return f"{self.host}:{self.port} // {self.email},{self.confirmation_mail}"
+
 class Window(QWidget):
     def __init__(self, parent=None):
         super(Window, self).__init__(parent)
