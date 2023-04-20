@@ -13,6 +13,10 @@ from selenium.webdriver.support.ui import Select
 from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.firefox.service import Service as FirefoxService
+from webdriver_manager.firefox import GeckoDriverManager
+from selenium.webdriver.firefox.options import Options as options
+
 import datetime
 #URLS
 SINGN_UP:str = "https://signup.live.com/signup"
@@ -22,8 +26,14 @@ LOGIN:str = "https://outlook.live.com/owa/?nlp=1"
 
 # PROXY VARIABLES
 HOST :list[str] = []
-PORT :str = str
-
+PORT :str= "3128"
+DATA = {
+    'host':str,
+    'port':str,
+    'email':str,
+    'password':str,
+    'confirmation_mail':str
+}
 # creating a hotmail class 
 
 class Hotmail:
@@ -74,11 +84,9 @@ class Hotmail:
     def set_confirmation_mail(self,confirmation_mail)->None:
         '''set_confirmation_mail'''
         self.confirmation_mail = confirmation_mail
-    def toString(self):
-        return f"{self.host}:{self.port} // {self.email},{self.confirmation_mail}"
-        
+
     def my_proxy(self)->webdriver:
-        ''' open a firfox profile using a specifique proxy '''
+        ''' open a firfox profile using a specifique proxy '''        
         try:
             opts = options()
             opts.set_preference("network.proxy.type", 1)
@@ -87,7 +95,8 @@ class Hotmail:
             opts.set_preference("network.proxy.ssl",self.host)
             opts.set_preference("network.proxy.ssl_port",int(self.port))
             opts.set_preference("general.useragent.override","whater_useragent")
-            browser = webdriver.Firefox(service=Service(GeckoDriverManager().install()),options=opts)
+            opts.update_preferences()
+            browser = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()),options=opts)
         except Exception:
             self.host = random.choice(HOST)
             opts = options()
@@ -97,12 +106,12 @@ class Hotmail:
             opts.set_preference("network.proxy.ssl",self.host)
             opts.set_preference("network.proxy.ssl_port",3128)
             opts.set_preference("general.useragent.override","whater_useragent")
-            browser = webdriver.Firefox(service=Service(GeckoDriverManager().install()),options=opts)
-        return browser   
-       
+            browser = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()),options=opts)
+        return browser
+
     def clear_and_input(self,id:any,value:str,browser:webdriver)->None:
         """ clear and put value in input field """
-        elem = WebDriverWait(browser, 5).until(
+        elem = WebDriverWait(browser, 10).until(
             EC.presence_of_element_located((By.ID, id))
         )
         elem.clear()
@@ -110,47 +119,63 @@ class Hotmail:
     
     def click_(self,browser,id:any)->None:
         """ click on submit button """
-        elem = WebDriverWait(browser, 5).until(
+        elem = WebDriverWait(browser, 10).until(
             EC.presence_of_element_located((By.ID, id))
         )
         elem.click()
-        
-    def create(self,_host) -> None:
-        ''' create a hotmail account '''
-        #get user info {firstname,lastname,email,password}
-        driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()))
-        driver.maximize_window()
-        driver.get(FAKE_USER_GENERATOR)
-        user = driver.find_element(By.CLASS_NAME,'address').find_element(By.TAG_NAME,'h3').text
+
+    def generate_user_info(self):
+        try:
+            browser = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()))
+        except:
+            browser = webdriver.Firefox()
+        browser.get(FAKE_USER_GENERATOR)
+        user = browser.find_element(By.CLASS_NAME,'address').find_element(By.TAG_NAME,'h3').text
         user = user.split(' ')
         del user[1]
         self.firstname = str(user[0])
         self.lastname = str(user[1])
-        self.email = f"{self.firstname}.{self.lastname}_{str(random.randint(1,5000))}@outlook.com"
-        self.password = f"{self.firstname}{self.lastname}{str(random.randint(1,500))}@"
-        self.confirmation_mail = f"{self.firstname}.{self.lastname}_{str(random.randint(1,20))}"
-        driver.quit()
+        self.email = str(user[1])+"_"+str(user[0])+"_"+str(random.randint(1,1000))+'@hotmail.com'
+        self.password = self.firstname+self.lastname+str(random.randint(1,500))+'@'
+        browser.close()
         
+    def create(self) -> None:
+        ''' create a hotmail account '''
+        #get user info {firstname,lastname,email,password}
+        self.generate_user_info()    
         # get a random proxy
         while True:
             try:
-                self.host = random.choice(HOST)
-                self.port = PORT
+                self.set_host(random.choice(HOST))
+                self.set_port(int(PORT))
                 browser = self.my_proxy()
+                print(f'{self.firstname} {self.lastname} {self.host}:{self.port}')
+
                 break
             except Exception:
                 print(f'{self.host} not working')
-       try:
-            #get sign-up url
-            browser.maximize_window()
-            browser.get(SINGN_UP)
+        
+        #get sign-up url
+        browser.get(SINGN_UP)
+        browser.maximize_window()
+
+        try:
             self.clear_and_input("MemberName",self.email,browser)
             self.click_(browser=browser,id="iSignupAction")
-            self.clear_and_input(id="PasswordInput",value=self.password,browser=browser)            
-            elem = WebDriverWait(browser, 30).until(
-                EC.presence_of_element_located((By.ID, 'iSignupAction'))
-            )
-            elem.click()
+            self.clear_and_input(id="PasswordInput",value=self.password,browser=browser)
+            # input the password 
+            try:
+                elem = WebDriverWait(browser, 10).until(
+                    EC.presence_of_element_located((By.ID, 'iSignupAction'))
+                )
+                elem.click()
+            except Exception:
+                elem = WebDriverWait(browser, 10).until(
+                    EC.presence_of_element_located((By.ID, 'PasswordForm'))
+                )
+                elem.submit()
+            finally:
+                sleep(3)        
             self.clear_and_input(id="FirstName",value=self.firstname,browser=browser)
             self.clear_and_input(id="LastName",value=self.lastname,browser=browser)
             self.click_(browser=browser,id="iSignupAction")
@@ -160,11 +185,11 @@ class Hotmail:
             month = int(random.randint(2,13))
             year = random.randint(1976,2004)
             self.birthday = str(day)+'/'+str(month-1)+'/'+str(year)
-            _day = WebDriverWait(browser, 30).until(
+            _day = WebDriverWait(browser, 20).until(
                 EC.presence_of_element_located((By.ID, "BirthDay"))
             )
             Select(_day).select_by_index(day)
-            _month = WebDriverWait(browser, 30).until(
+            _month = WebDriverWait(browser, 20).until(
                 EC.presence_of_element_located((By.ID, "BirthMonth"))
             )
             Select(_month).select_by_index(month)
@@ -173,12 +198,13 @@ class Hotmail:
             #submit all info to get the captcha
             browser.find_element(By.ID,"iSignupAction").click()
             self.confirmation_mail = self.firstname+'_'+self.lastname+str(random.randint(1,20))
-        exept Exception:
-            browser.quit
-            
-    def get_code(self,email,browser)->str:
+        except Exception:
+            print(f'{self.get_host()}:{self.get_port} // email : {self.get_email()}')
+            browser.close()
+
+    def get_code(self,email)->str:
         ''' get code from the mail box '''
-        driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()))
+        driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()))
         driver.maximize_window()
         driver.get("https://www.guerrillamail.com/")
         self.click_(browser=driver,id="inbox-id")
@@ -203,8 +229,9 @@ class Hotmail:
         code :str = td.find_element(By.TAG_NAME,'span').text  
         driver.quit()
         return code
-
+    
     def recover(self) ->None:
+        ''' add recovery mail to the email created'''        
         browser = self.my_proxy()
         try:
             browser.get(PROOFS_ADD)
@@ -226,7 +253,7 @@ class Hotmail:
                 self.click_(browser=browser,id="iNext")
             except Exception:
                 pass
-            elem = WebDriverWait(browser, 20).until(
+            elem = WebDriverWait(browser, 10).until(
                     EC.presence_of_element_located((By.CLASS_NAME, 'table'))
                 )
             elem.click()
@@ -241,7 +268,16 @@ class Hotmail:
             sleep(3)
             browser.quit()
         except Exception:
-            print(self.toString())
+            DATA = {
+                'host':self.get_host(),
+                'port':self.get_port(),
+                'email':self.get_email(),
+                'password':self.get_password(),
+                'confirmation_mail':self.get_confirmation_mail()
+            }
+            with open("non_recover",'a') as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(DATA.values())
             browser.quit()  
 
     def go_junk(self,browser):
@@ -260,49 +296,67 @@ class Hotmail:
     def reporting(self):    
         browser = self.my_proxy()     
         browser.get(LOGIN)
-        self.clear_and_input(id="i0116",value=self.email,browser=browser)
-        self.click_(browser=browser,id="idSIButton9")
-        sleep(3)
-        pwd = browser.find_element(By.ID,"i0118")
-        pwd.send_keys(self.password)
-        browser.find_element(By.ID,"idSIButton9").click()   
-        
-        self.click_(browser=browser,id="idBtn_Back")
-        sleep(1)
-        self.go_junk(browser=browser)
         try:
-            elem = WebDriverWait(browser, 10).until(
-                EC.presence_of_element_located((By.CLASS_NAME, "zXLz3"))
-            )
-            mails = elem.find_elements(By.TAG_NAME,"div")
-            total_mails = len(mails)
-            for i in range(total_mails):
-                n = random.randrange(1,150)
-                mails[1].click()
-                sleep(5)
-                if n%2 == 0:
-                    self.flag(browser=browser)
-                    sleep(5)
-                browser.find_element(By.ID,"540").click()
-                inbox = WebDriverWait(browser, 10).until(
-                    EC.presence_of_element_located((By.NAME, "Boîte de réception"))
+            self.clear_and_input(id="i0116",value=self.email,browser=browser)
+            self.click_(browser=browser,id="idSIButton9")
+            sleep(3)
+            pwd = browser.find_element(By.ID,"i0118")
+            pwd.send_keys(self.password)
+            browser.find_element(By.ID,"idSIButton9").click()   
+            try: 
+                elem = WebDriverWait(browser,30).until(
+                    EC.presence_of_element_located((By.id,'iShowSkip'))
                 )
-                inbox.click()
-                try:
-                    form = WebDriverWait(browser, 10).until(
-                        EC.presence_of_element_located((By.TAG_NAME, "form"))
-                    )
-                    form.submit()
-                except Exception:
-                    pass
-                try:
-                    elem = WebDriverWait(browser, 10).until(
+                elem.click()
+            except Exception:
+                self.click_(browser=browser,id="idBtn_Back")
+            sleep(1)
+            self.go_junk(browser=browser)
+            try:
+                elem = WebDriverWait(browser, 30).until(
                     EC.presence_of_element_located((By.CLASS_NAME, "zXLz3"))
-                    )
-                    mails = elem.find_elements(By.TAG_NAME,"div")
-                except Exception:
-                    browser.close()
+                )
+                mails = elem.find_elements(By.TAG_NAME,"div")
+                total_mails = len(mails)
+                for i in range(total_mails):
+                    n = random.randrange(1,150)
+                    mails[1].click()
+                    sleep(5)
+                    if n%2 == 0:
+                        self.flag(browser=browser)
+                        sleep(5)
+                    browser.find_element(By.ID,"540").click()
+                    try:
+                        inbox = WebDriverWait(browser, 30).until(
+                            EC.presence_of_element_located((By.NAME, "Boîte de réception"))
+                        )
+                        inbox.click()
+                    except:
+                        inbox = WebDriverWait(browser, 10).until(
+                            EC.presence_of_element_located((By.NAME, "Inbox"))
+                        )
+                        inbox.click()
+                    try:
+                        form = WebDriverWait(browser, 20).until(
+                            EC.presence_of_element_located((By.TAG_NAME, "form"))
+                        )
+                        form.submit()
+                    except Exception:
+                        pass
+                    try:
+                        elem = WebDriverWait(browser, 10).until(
+                        EC.presence_of_element_located((By.CLASS_NAME, "zXLz3"))
+                        )
+                        mails = elem.find_elements(By.TAG_NAME,"div")
+                    except Exception:
+                        browser.close()
+                        return True
+            except Exception:
+                print(self.get_email())
+                browser.close()
+                return True
         except Exception:
+            print(self.get_email)
             browser.close()
             
     def send(self,to,subject):
@@ -322,9 +376,7 @@ class Hotmail:
                 elem.click()
             except Exception:
                 self.click_(browser=browser,id="idBtn_Back")
-            sleep(1)
-            self.go_junk(browser=browser)
-            sleep(10)
+            sleep(30)
             buttons =browser.find_elements(By.CLASS_NAME,"splitPrimaryButton")
             buttons[0].click()
             elem = WebDriverWait(browser, 10).until(
@@ -336,8 +388,11 @@ class Hotmail:
                     EC.presence_of_element_located((By.CLASS_NAME, "ms-TextField-field"))
                 )
             elem.send_keys(subject)
-            
-            browser.find_element(By.XPATH,'//*[@title="Envoyer (Ctrl+Entrée)"]').click()
+            try:
+                browser.find_element(By.XPATH,'//*[@title="Envoyer (Ctrl+Entrée)"]').click()
+            except Exception:
+                browser.find_element(By.XPATH,'//*[@title="Send (Ctrl+Entrée)"]').click()
+
             sleep(5)
         except Exception:
             print(self.email)
@@ -386,25 +441,22 @@ class Hotmail:
             sleep(3)
             pwd = browser.find_element(By.ID,"i0118")
             pwd.send_keys(self.password)
-            browser.find_element(By.ID,"idSIButton9").click()   
+            browser.find_element(By.ID,"idSIButton9").click()
             
             self.click_(browser=browser,id="idBtn_Back")
-            '''DATA['host']=self.host
+            DATA['host']=self.host
             DATA['port']=self.port
             DATA['email']=self.email
             DATA['password']=self.password
             DATA['confirmation_mail']=self.confirmation_mail
             filename =str('correct_seeds.csv')
-
             with open(file=f'{filename}',mode='a',encoding='UTF-8') as f:   
                 writer = csv.writer(f)
-                writer.writerow(DATA.values())'''
+                writer.writerow(DATA.values())
         except Exception:
             browser.quit()
-   
     def toString(self):
-        return f"{self.host}:{self.port} // {self.email},{self.confirmation_mail}"
-
+        return f'{self.email}:{self.password}'
 class Window(QWidget):
     def __init__(self, parent=None):
         super(Window, self).__init__(parent)
@@ -412,7 +464,7 @@ class Window(QWidget):
         self.to = QLineEdit()
         self.subject = QLineEdit()
         self.textEdit = QTextEdit()
-        self.port = QLineEdit()
+
         grid = QGridLayout()
         grid.addWidget(self.create(), 0, 0)
         grid.addWidget(self.recover(), 0, 1)
@@ -425,7 +477,7 @@ class Window(QWidget):
         self.setLayout(grid)
         
         self.setWindowTitle("hotmail app")
-        self.setFixedSize(1000, 900)
+        self.setFixedSize(1000, 700)
     def use_list(self):        
         _host = self.textEdit.toPlainText().split("\n")
 
@@ -437,12 +489,7 @@ class Window(QWidget):
             
         else:
             QMessageBox.about(self, "error","proxy list is empty")
-    def add_port(self):
-        PORT = int(self.port.text())
-        if PORT:
-        print(PORT)
-            QMessageBox.about(self, "success","port added succesfully")
-            
+
     def add_proxy(self):
         filepath = QFileDialog.getOpenFileName(self, 'Select Folder')
         if list(filepath)[0]:
@@ -454,37 +501,38 @@ class Window(QWidget):
         print(len(HOST))
     # functional logique
     def _create(self):  
-        _host = random.choice(HOST)
-
         i = 0
-        if int(self.numSeedsToCreate.text()) > 0:
-            folderpath = QFileDialog.getExistingDirectory(self, 'Select Folder')
-            if folderpath:
-                while i < int(self.numSeedsToCreate.text()):
-                    #create a hotmail obj
-                    _hotmail = Hotmail()
-                    #create a hotmail mail
-                    try:
-                        _hotmail.create(_host)
-                        DATA = {
-                            'host':_hotmail.get_host(),
-                            'port':_hotmail.get_port(),
-                            'email':_hotmail.get_email(),
-                            'password':_hotmail.get_password(),
-                            'confirmation_mail':_hotmail.get_confirmation_mail()
-                        }
-                        _date = datetime.datetime.now()
-                        filename =str(f'{_date.day}-{_date.month}-{_date.year}.csv')
-                        with open(f"{folderpath}\{filename}",'a') as csvfile:
-                            writer = csv.writer(csvfile)
-                            writer.writerow(DATA.values())
-                    except Exception:
-                        print(_hotmail.get_host())
-                    #incriment
-                    i+=1
+        if len(HOST) != 0:
+            if int(self.numSeedsToCreate.text()) > 0:
+                folderpath = QFileDialog.getExistingDirectory(self, 'Select Folder')
+                if folderpath:
+                    while i < int(self.numSeedsToCreate.text()):
+                        #create a hotmail obj
+                        _hotmail = Hotmail()
+                        #create a hotmail mail
+                        try:
+                            _hotmail.create()
+                            DATA = {
+                                'host':_hotmail.get_host(),
+                                'port':_hotmail.get_port(),
+                                'email':_hotmail.get_email(),
+                                'password':_hotmail.get_password(),
+                                'confirmation_mail':_hotmail.get_confirmation_mail()
+                            }
+                            _date = datetime.datetime.now()
+                            filename =str(f'{_date.day}-{_date.month}-{_date.year}.csv')
+                            with open(f"{folderpath}\{filename}",'a') as csvfile:
+                                writer = csv.writer(csvfile)
+                                writer.writerow(DATA.values())
+                        except Exception:
+                            pass
+                        #incriment
+                        i+=1
+         
+            else:
+                QMessageBox.about(self, "Error", "number must be greater then 0")
         else:
-            QMessageBox.about(self, "Error", "number must be greater then 0")
-
+            QMessageBox.about(self,"Error"," proxy empty")
     def _reporting(self):
         filepath = QFileDialog.getOpenFileName(self, 'Select Folder')
         if list(filepath)[0]:
@@ -517,7 +565,7 @@ class Window(QWidget):
                 h.set_port(seed[1])
                 h.set_email(seed[2])
                 h.set_password(seed[3])
-                h.set_confirmation_mail(seed[4])
+                h.set_confirmation_mail(seed[-1])
                 h.recover()
     
     def _send(self):
@@ -653,12 +701,9 @@ class Window(QWidget):
         buttonBox.clicked.connect(self.add_proxy)
         buttonBox2 = QPushButton("use this list")
         buttonBox2.clicked.connect(self.use_list)
-        buttonBox3 = QPushButton("add port")
-        buttonBox3.clicked.connect(self.add_port)
 
         vbox = QVBoxLayout()
-        vbox.addWidget(self.port)
-        vbox.addWidget(buttonBox3)
+
         vbox.addWidget(buttonBox)
         vbox.addWidget(self.textEdit)
         vbox.addWidget(buttonBox2)
